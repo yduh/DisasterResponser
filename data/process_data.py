@@ -1,43 +1,82 @@
-import sys
+# Preprocess the data and save it in a database
+# Usage: python3 process_data.py --message_filename disaster_messages.csv --category_filename disaster_categories.csv --database_filename preprocessed.db.sqlite3
 
+import sys, os
+import argparse
+import numpy as np
+import pandas as pd
+from sqlalchemy import create_engine
 
-def load_data(messages_filepath, categories_filepath):
-    pass
+MESSAGE_FILENAME = 'disaster_messages.csv'
+CATEGORY_FILENAME = 'disaster_categories.csv'
+DATABASE_FILENAME = 'preprocessed.db.sqlite3'
+TABLE_NAME = 'data_preprocessed'
+
+def load_data(message_filepath, category_filename):
+    messages = pd.read_csv(message_filename)
+    categories = pd.read_csv(category_filename)
+
+    df = pd.merge(categories, messages, how='outer', on='id')
+
+    return df
 
 
 def clean_data(df):
-    pass
+    # create a dataframe of the n individual category columns
+    categories = df.categories.str.split(pat=';', expand=True)
+
+    # select the first row of the categories dataframe,
+    # use this row to extract a list of new column names for categories
+    row = list(categories.iloc[0])
+    category_colnames = [x.split('-')[0] for x in row]
+    # rename the columns of 'categories'
+    categories.columns = category_colnames
+
+    # convert category values to just numbers 0 or 1
+    for column in categories:
+        categories[column] = categories[column].str[-1]
+        categories[column] = pd.to_numeric(categories[column])
+
+    # drop the original categories column from df
+    df = df.drop('categories', axis=1)
+    # concatenate the original dataframe with the new dataframe
+    df = pd.concat([df, categories], axis=1)
+
+    # remove duplicates
+    df = df.drop_duplicates()
+
+    return df
 
 
 def save_data(df, database_filename):
-    pass  
+    engine = create_engine('sqlite:///'+database_filename)
+    df.to_sql(TABLE_NAME, engine, index=False)
 
 
-def main():
-    if len(sys.argv) == 4:
-
-        messages_filepath, categories_filepath, database_filepath = sys.argv[1:]
-
-        print('Loading data...\n    MESSAGES: {}\n    CATEGORIES: {}'
-              .format(messages_filepath, categories_filepath))
-        df = load_data(messages_filepath, categories_filepath)
-
-        print('Cleaning data...')
-        df = clean_data(df)
-        
-        print('Saving data...\n    DATABASE: {}'.format(database_filepath))
-        save_data(df, database_filepath)
-        
-        print('Cleaned data saved to database!')
+def parse_input_argument():
+    parser = argparse.ArgumentParser(description = 'Disaster Responser Data Processor')
+    parser.add_argument('--message_filename', type=str, default=MESSAGE_FILENAME, help="Filename of the messages database (input)")
+    parser.add_argument('--category_filename', type=str, default=CATEGORY_FILENAME, help="Filename of the categories database (input)")
+    parser.add_argument('--database_filename', type=str, default=DATABASE_FILENAME, help="Filename for the cleaned data that is going to save (output)")
+    args = parser.parse_args()
     
-    else:
-        print('Please provide the filepaths of the messages and categories '\
-              'datasets as the first and second argument respectively, as '\
-              'well as the filepath of the database to save the cleaned data '\
-              'to as the third argument. \n\nExample: python process_data.py '\
-              'disaster_messages.csv disaster_categories.csv '\
-              'DisasterResponse.db')
+    return (args.message_filename, args.category_filename, args.database_filename)
 
+
+def processor(message_filename, category_filename, database_filename):
+    print('Loading data...\n    MESSAGES: {}\n    CATEGORIES: {}'.format(message_filename, category_filename))
+    df = load_data(message_filename, category_filename)
+
+    print('Cleaning data...')
+    df = clean_data(df)
+        
+    print('Saving data...\n    DATABASE: {}'.format(database_filename))
+    save_data(df, database_filename)
+        
+    print('Cleaned data saved to database!')
+    
 
 if __name__ == '__main__':
-    main()
+    message_filename, category_filename, database_filename = parse_input_argument()
+    processor(message_filename, category_filename, database_filename)
+
