@@ -45,54 +45,17 @@ def my_tokenizer(text):
         text = text.replace(url, 'urlplaceholder')
 
     tokens = [word for word in RegexpTokenizer(r'\b[a-zA-Z][a-zA-Z0-9]{2,14}\b').tokenize(text)]
-    #tokens = word_tokenize(text)
     tokens = [w for w in tokens if w not in stopwords.words("english")]
     
     lemmatizer = WordNetLemmatizer()
     cleaned_tokens = []
     for tok in tokens:
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        #clean_tok = lemmatizer.lemmatize(tok).strip()
         cleaned_tokens.append(clean_tok)
 
     return cleaned_tokens    
 
-
-class StartingVerbExtractor(BaseEstimator, TransformerMixin):
-    def starting_verb(self, text):
-        sentence_list = nltk.sent_tokenize(text)
-        for sentence in sentence_list:
-            pos_tags = nltk.pos_tag(my_tokenizer(sentence))
-            if len(pos_tags) > 0:
-                first_word, first_tag = pos_tags[0]
-                # VB verb, base form take; VBP verb, sing. present, known-3d take
-                if first_tag in ['VB', 'VBP']: 
-                    return True
-                else: 
-                    return False
-            else:
-                return False       
-    
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        X_tagged = pd.Series(X).apply(self.starting_verb)
-        return pd.DataFrame(X_tagged)
-
-
 def build_model(grid_search_cv = False):
-    #pipeline = Pipeline([
-    #	('features', FeatureUnion([
-    #        ('text', Pipeline([
-    #        	('vect', CountVectorizer(tokenizer=my_tokenizer)), 
-    #        	('tfidf', TfidfTransformer())
-    #        ])),
-    #        ('start_verb', StartingVerbExtractor())
-    #	])), 
-
-    #    ('clf', MultiOutputClassifier(RandomForestClassifier()))
-    #])
     pipeline = Pipeline([('vect', CountVectorizer(tokenizer=my_tokenizer)),
         ('tfidf', TfidfTransformer()), 
         ('clf', MultiOutputClassifier(RandomForestClassifier()))
