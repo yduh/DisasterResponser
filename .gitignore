@@ -1,0 +1,5 @@
+*.sqlite*
+*.pkl
+*.o
+*.pcy
+.DS_Store
