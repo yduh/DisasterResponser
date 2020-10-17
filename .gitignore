@@ -1,5 +1,5 @@
-*.sqlite*
-*.pkl
+data/*.sqlite*
+models/*.pkl
 *.o
 *.pcy
 .DS_Store
