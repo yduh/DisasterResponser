@@ -2,37 +2,27 @@ import json
 import plotly
 import pandas as pd
 
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
-from sklearn.externals import joblib
+#from sklearn.externals 
+import joblib
 from sqlalchemy import create_engine
 
 
-app = Flask(__name__)
-
-def tokenize(text):
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
-
-    clean_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
-
-    return clean_tokens
+DATABASE_FILENAME = 'preprocessed.db.sqlite3'
+TABLE_NAME = 'data_preprocessed'
+MODEL_FILENAME = 'clf.pkl'
 
 # load data
-engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-df = pd.read_sql_table('YourTableName', engine)
+engine = create_engine('sqlite:///../data/'+DATABASE_FILENAME)
+df = pd.read_sql_table(TABLE_NAME, engine)
 
 # load model
-model = joblib.load("../models/your_model_name.pkl")
+model = joblib.load("../models/"+MODEL_FILENAME)
 
 
+app = Flask(__name__)
 # index webpage displays cool visuals and receives user input text for model
 @app.route('/')
 @app.route('/index')
