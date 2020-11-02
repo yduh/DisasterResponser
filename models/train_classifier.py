@@ -9,9 +9,12 @@ from sqlalchemy import create_engine
 from joblib import dump, load
 
 import nltk
-from nltk.tokenize import word_tokenize, RegexpTokenizer
-from nltk.corpus import stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
+#from nltk.tokenize import word_tokenize, RegexpTokenizer
+#from nltk.corpus import stopwords
+#from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from nltk.stem.porter import PorterStemmer
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -38,25 +41,48 @@ def load_data(database_filename):
     return (X, y, category_names)
 
 
-def my_tokenizer(text):
-    url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    detected_urls = re.findall(url_regex, text)
-    for url in detected_urls:
-        text = text.replace(url, 'urlplaceholder')
+def tokenize(text):
+    # replace all non-alphabets and non-numbers with blank space
+    text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
 
-    tokens = [word for word in RegexpTokenizer(r'\b[a-zA-Z][a-zA-Z0-9]{2,14}\b').tokenize(text)]
-    tokens = [w for w in tokens if w not in stopwords.words("english")]
-    
+    # Tokenize words
+    tokens = word_tokenize(text)
+
+    # instantiate lemmatizer
     lemmatizer = WordNetLemmatizer()
-    cleaned_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        cleaned_tokens.append(clean_tok)
 
-    return cleaned_tokens    
+    # instantiate stemmer
+    stemmer = PorterStemmer()
+
+    clean_tokens = []
+    for tok in tokens:
+        # lemmtize token using noun as part of speech
+        clean_tok = lemmatizer.lemmatize(tok)
+        # lemmtize token using verb as part of speech
+        clean_tok = lemmatizer.lemmatize(clean_tok, pos='v')
+        # stem token
+        clean_tok = stemmer.stem(clean_tok)
+        # strip whitespace and append clean token to array
+        clean_tokens.append(clean_tok.strip())
+
+    #url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    #detected_urls = re.findall(url_regex, text)
+    #for url in detected_urls:
+    #    text = text.replace(url, 'urlplaceholder')
+
+    #tokens = [word for word in RegexpTokenizer(r'\b[a-zA-Z][a-zA-Z0-9]{2,14}\b').tokenize(text)]
+    #tokens = [w for w in tokens if w not in stopwords.words("english")]
+    
+    #lemmatizer = WordNetLemmatizer()
+    #cleaned_tokens = []
+    #for tok in tokens:
+    #    clean_tok = lemmatizer.lemmatize(tok).lower().strip()
+    #    cleaned_tokens.append(clean_tok)
+
+    return clean_tokens    
 
 def build_model(grid_search_cv = False):
-    pipeline = Pipeline([('vect', CountVectorizer(tokenizer=my_tokenizer)),
+    pipeline = Pipeline([('vect', CountVectorizer(tokenizer=tokenize)),
         ('tfidf', TfidfTransformer()), 
         ('clf', MultiOutputClassifier(RandomForestClassifier()))
     ])
