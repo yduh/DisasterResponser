@@ -45,3 +45,12 @@ Here's the file structure of the project:
     `python3 run.py`
 
 3. Go to http://0.0.0.0:3001/
+
+### Results:
+Finally, the results will be shown on a web app where you can input a message and get classification results.
+
+Screenshot of the web App:
+![Screenshot of Web App](WebApp.png)
+
+An example message input and the output categorizations:
+![example1](example1.png)
