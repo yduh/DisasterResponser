@@ -13,6 +13,9 @@ DATABASE_FILENAME = 'preprocessed.db.sqlite3'
 TABLE_NAME = 'data_preprocessed'
 
 def load_data(message_filepath, category_filename):
+    '''
+    Load csv files: one with messages, one with category names
+    '''
     messages = pd.read_csv(message_filename)
     categories = pd.read_csv(category_filename)
 
@@ -22,6 +25,9 @@ def load_data(message_filepath, category_filename):
 
 
 def clean_data(df):
+    '''
+    Clean the read-in dataframe. 
+    '''
     # create a dataframe of the n individual category columns
     categories = df.categories.str.split(pat=';', expand=True)
 
@@ -49,11 +55,17 @@ def clean_data(df):
 
 
 def save_data(df, database_filename):
+    '''
+    Save and return the cleaned dataframe as a SQLite database.
+    '''
     engine = create_engine('sqlite:///'+database_filename)
     df.to_sql(TABLE_NAME, engine, index=False)
 
 
 def parse_input_argument():
+    '''
+    Argument parser. The functions are shown in the help descriptions. 
+    '''
     parser = argparse.ArgumentParser(description = 'Disaster Responser Data Processor')
     parser.add_argument('--message_filename', type=str, default=MESSAGE_FILENAME, help="Filename of the messages database (input)")
     parser.add_argument('--category_filename', type=str, default=CATEGORY_FILENAME, help="Filename of the categories database (input)")
@@ -64,6 +76,13 @@ def parse_input_argument():
 
 
 def processor(message_filename, category_filename, database_filename):
+    '''
+    The main function.
+    Provided inputs:
+        - message_filename: the input message csv file name.
+        - category_filename: the input message category csv file name.
+        - database_filename: the output saved database name.
+    '''
     print('Loading data...\n    MESSAGES: {}\n    CATEGORIES: {}'.format(message_filename, category_filename))
     df = load_data(message_filename, category_filename)
 

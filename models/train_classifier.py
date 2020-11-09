@@ -15,7 +15,6 @@ from nltk.stem.porter import PorterStemmer
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.multioutput import MultiOutputClassifier
@@ -50,11 +49,10 @@ def parse_input_argument():
     parser.add_argument('--model_filename', type=str, default='MODEL_FILENAME', help='Pickle filename for trained classifier model (output)')
 
     # Optional arguments:
-    parser.add_argument('--model_type', type=int, default=1, choices={1, 2}, help='Choose 1 for AdamBoost Tfidf, or 2 for pre-trained GloVe')
     parser.add_argument('--grid_search_cv', action='store_true', default=False, help='Run grid search CV for the parameters')
     args = parser.parse_args()
 
-    return (args.database_filename, args.model_filename, args.model_type, args.grid_search_cv)
+    return (args.database_filename, args.model_filename, args.grid_search_cv)
 
 
 def tokenize(text):
@@ -89,50 +87,30 @@ def tokenize(text):
     return clean_tokens    
 
 
-def build_model(model_type=1, grid_search_cv = False):
+def build_model(grid_search_cv = False):
     '''
     Build the pipelines for two models. Scanned parameters is also defined. 
     Default setting is Model 1 (NLTK + Adam optimizer) and no parameter scanned. 
     '''
-    # Model 1: NLTK with Adam gradient optimizer
-    if model_type == 1:
-        pipeline = Pipeline([
-            ('vect', CountVectorizer(tokenizer=tokenize)),
-            ('tfidf', TfidfTransformer()), 
-            ('clf', MultiOutputClassifier(AdaBoostClassifier(n_estimators=100, random_state=100)))
-        ])
+    pipeline = Pipeline([
+        ('vect', CountVectorizer(tokenizer=tokenize)),
+        ('tfidf', TfidfTransformer()), 
+        ('clf', MultiOutputClassifier(AdaBoostClassifier(n_estimators=100, random_state=100)))
+    ])
 
-        #pipeline.get_params()
-        if grid_search_cv:
-            print('Running GridSearchCV...')
-            parameters = {
-                'vect__ngram_range': ((1, 2), (1, 3)),
-                'vect__max_df': (0.4, 0.5, 0.6),
-                'tfidf__max_df':(0.9, 1.0),
-                'tfidf__min_df':(0.01, 0.1), 
-                'clf__stop_words': (None, 'english'),
-                'clf__estimator__learning_rate': [0.1, 1.0],
-            }
-            pipeline = GridSearchCV(pipeline, param_grid=parameters)
-    else: 
-        print("Please indicate the model type 1 or 2")
+    #pipeline.get_params()
+    if grid_search_cv:
+        print('Running GridSearchCV...')
+        parameters = {
+            'vect__ngram_range': ((1, 2), (1, 3)),
+            'vect__max_df': (0.4, 0.5, 0.6),
+            'tfidf__max_df':(0.9, 1.0),
+            'tfidf__min_df':(0.01, 0.1), 
+            'clf__stop_words': (None, 'english'),
+            'clf__estimator__learning_rate': [0.1, 1.0],
+        }
+        pipeline = GridSearchCV(pipeline, param_grid=parameters)
 
-
-    # Model 2: pre-trained GloVe word vector
-    '''
-    elif model_type == 2:
-        pipeline = Pipeline([
-
-            ])
-
-        if grid_search_cv:
-            print('Running GridSearchCV...')
-            parameters = {
-                    'clf__hidden_layer_sizes':((32,), (64,))
-                    'clf__learning_rate_int':(0.001, 0.02)
-            }
-            pipeline = GridSearchCV(pipeline, param_grid=parameters)
-    '''
     return pipeline
 
 
@@ -163,7 +141,7 @@ def save_model(model, model_filename):
     dump(model, model_filename)
 
 
-def runTraining(database_filename, model_filename, model_type, grid_search_cv=False):
+def runTraining(database_filename, model_filename, grid_search_cv=False):
     '''
     The main function.
     Provided inputs:
@@ -179,7 +157,7 @@ def runTraining(database_filename, model_filename, model_type, grid_search_cv=Fa
     nltk.download(['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger'])
     
     print('Building model...')
-    model = build_model(model_type, grid_search_cv)
+    model = build_model(grid_search_cv)
         
     print('Training model...')
     model.fit(X_train, y_train)
@@ -195,6 +173,6 @@ def runTraining(database_filename, model_filename, model_type, grid_search_cv=Fa
 
 
 if __name__ == '__main__':
-    database_filename, model_filename, model_type, grid_search_cv = parse_input_argument()
-    runTraining(database_filename, model_filename, model_type, grid_search_cv)
+    database_filename, model_filename, grid_search_cv = parse_input_argument()
+    runTraining(database_filename, model_filename, grid_search_cv)
 
