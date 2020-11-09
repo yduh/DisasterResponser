@@ -5,23 +5,22 @@ import pandas as pd
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
-#from sklearn.externals 
 from sqlalchemy import create_engine
 import joblib
 
 import sys, re
 
 import nltk
-#from nltk.tokenize import word_tokenize, RegexpTokenizer
-#from nltk.corpus import stopwords
-#from nltk.stem.wordnet import WordNetLemmatizer
-from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
 
 app = Flask(__name__)
 
 def tokenize(text):
+    '''
+    Same as we did in tokenize() function in model/train_classifier.py
+    '''
     # replace all non-alphabets and non-numbers with blank space
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
 
@@ -45,21 +44,8 @@ def tokenize(text):
         # strip whitespace and append clean token to array
         clean_tokens.append(clean_tok.strip())
 
-    #url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    #detected_urls = re.findall(url_regex, text)
-    #for url in detected_urls:
-    #    text = text.replace(url, 'urlplaceholder')
-
-    #tokens = [word for word in RegexpTokenizer(r'\b[a-zA-Z][a-zA-Z0-9]{2,14}\b').tokenize(text)]
-    #tokens = [w for w in tokens if w not in stopwords.words("english")]
-    
-    #lemmatizer = WordNetLemmatizer()
-    #cleaned_tokens = []
-    #for tok in tokens:
-    #    clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-    #    cleaned_tokens.append(clean_tok)
-
     return clean_tokens    
+
 
 DATABASE_FILENAME = 'preprocessed.db.sqlite3'
 TABLE_NAME = 'data_preprocessed'
@@ -161,6 +147,9 @@ def go():
 
 
 def main():
+    '''
+    Go http://0.0.0.0:3001/ to view the results
+    '''
     app.run(host='0.0.0.0', port=3001, debug=True)
 
 
