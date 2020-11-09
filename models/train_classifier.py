@@ -10,7 +10,7 @@ from joblib import dump, load
 
 import nltk
 from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
+from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
@@ -18,7 +18,6 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
-from sklearn.svm import SVC
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import classification_report, accuracy_score
@@ -49,10 +48,13 @@ def parse_input_argument():
     parser = argparse.ArgumentParser(description = 'Disaster Responser Train Classifier')
     parser.add_argument('--database_filename', type=str, default='DATABASE_FILENAME', help='Filename of the preprocessed data (input)')
     parser.add_argument('--model_filename', type=str, default='MODEL_FILENAME', help='Pickle filename for trained classifier model (output)')
+
+    # Optional arguments:
+    parser.add_argument('--model_type', type=int, default=1, choices={1, 2}, help='Choose 1 for AdamBoost Tfidf, or 2 for pre-trained GloVe')
     parser.add_argument('--grid_search_cv', action='store_true', default=False, help='Run grid search CV for the parameters')
     args = parser.parse_args()
 
-    return (args.database_filename, args.model_filename, args.grid_search_cv)
+    return (args.database_filename, args.model_filename, args.model_type, args.grid_search_cv)
 
 
 def tokenize(text):
@@ -89,14 +91,15 @@ def tokenize(text):
 
 def build_model(model_type=1, grid_search_cv = False):
     '''
-    Build the pipelines that 
+    Build the pipelines for two models. Scanned parameters is also defined. 
+    Default setting is Model 1 (NLTK + Adam optimizer) and no parameter scanned. 
     '''
     # Model 1: NLTK with Adam gradient optimizer
     if model_type == 1:
         pipeline = Pipeline([
             ('vect', CountVectorizer(tokenizer=tokenize)),
             ('tfidf', TfidfTransformer()), 
-            ('clf', MultiOutputClassifier(AdaBoostClassifier(n_estimator=100, random_state=100)))
+            ('clf', MultiOutputClassifier(AdaBoostClassifier(n_estimators=100, random_state=100)))
         ])
 
         #pipeline.get_params()
@@ -111,6 +114,9 @@ def build_model(model_type=1, grid_search_cv = False):
                 'clf__estimator__learning_rate': [0.1, 1.0],
             }
             pipeline = GridSearchCV(pipeline, param_grid=parameters)
+    else: 
+        print("Please indicate the model type 1 or 2")
+
 
     # Model 2: pre-trained GloVe word vector
     '''
@@ -127,20 +133,26 @@ def build_model(model_type=1, grid_search_cv = False):
             }
             pipeline = GridSearchCV(pipeline, param_grid=parameters)
     '''
-    else: 
-        print("Please indicate the model type 1 or 2")
-
     return pipeline
 
 
 def evaluate_model(model, X_test, y_test, category_names):
+    '''
+    Training model evaluation. 
+    Return with precision, recall, and f1 score for each categories.
+    Provided inputs:
+        - model: the trainned classify model 
+        - X_test: attributes inputs from test dataset
+        - y_test: category labels of the messages of the test dataset
+        - category_names: names of the category
+    '''
     y_pred = model.predict(X_test)
 
     # Calculate the accuracy for each of them.	
     for i in range(len(category_names)):   
         print('Category: {} '.format(category_names[i]))
         print(classification_report(y_test.iloc[:, i].values, y_pred[:, i]))
-        print('Accuracy {}\n\n'.format(accuracy_score(y_test.iloc[:, i].values, y_pred[:, i])))
+        #print('Accuracy {}\n\n'.format(accuracy_score(y_test.iloc[:, i].values, y_pred[:, i])))
         #print(classification_report(y_test.iloc[:, 1:].values, np.array([x[1:] for x in y_pred]), target_names = category_names))
  
 
@@ -151,13 +163,13 @@ def save_model(model, model_filename):
     dump(model, model_filename)
 
 
-def runTraining(database_filename, model_filename, grid_search_cv=False):
+def runTraining(database_filename, model_filename, model_type, grid_search_cv=False):
     '''
     The main function.
-    Provided with
-    - database_filename: the input given data file name.
-    - model_filename: the output saving model name.
-    - grid_search_cv: parameters scan closed by default. Only open it when if it is needed. 
+    Provided inputs:
+        - database_filename: the input given data file name.
+        - model_filename: the output saving model name.
+        - grid_search_cv: parameters scan closed by default. Only open it when if it is needed. 
     '''
     print('Loading data...\n    DATABASE: {}'.format(database_filename))
     X, y, category_names = load_data(database_filename)
@@ -167,7 +179,7 @@ def runTraining(database_filename, model_filename, grid_search_cv=False):
     nltk.download(['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger'])
     
     print('Building model...')
-    model = build_model(grid_search_cv)
+    model = build_model(model_type, grid_search_cv)
         
     print('Training model...')
     model.fit(X_train, y_train)
@@ -183,6 +195,6 @@ def runTraining(database_filename, model_filename, grid_search_cv=False):
 
 
 if __name__ == '__main__':
-    database_filename, model_filename, grid_search_cv = parse_input_argument()
-    runTraining(database_filename, model_filename, grid_search_cv)
+    database_filename, model_filename, model_type, grid_search_cv = parse_input_argument()
+    runTraining(database_filename, model_filename, model_type, grid_search_cv)
 
