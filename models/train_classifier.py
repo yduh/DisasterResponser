@@ -9,18 +9,15 @@ from sqlalchemy import create_engine
 from joblib import dump, load
 
 import nltk
-#from nltk.tokenize import word_tokenize, RegexpTokenizer
-#from nltk.corpus import stopwords
-#from nltk.stem.wordnet import WordNetLemmatizer
-from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.svm import SVC
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -31,6 +28,9 @@ TABLE_NAME = 'data_preprocessed'
 MODEL_FILENAME = 'clf.pkl'
 
 def load_data(database_filename):
+    '''
+    Load SQL database from the given file and path.
+    '''
     engine = create_engine('sqlite:///'+database_filename)
     df = pd.read_sql_table(TABLE_NAME, engine)
 
@@ -41,17 +41,36 @@ def load_data(database_filename):
     return (X, y, category_names)
 
 
+def parse_input_argument():
+    '''
+    Arguments parser. The functions are shown in the help descriptions.
+    --grid_search_cv set to Fasle only if needed because of the computational cost. 
+    '''
+    parser = argparse.ArgumentParser(description = 'Disaster Responser Train Classifier')
+    parser.add_argument('--database_filename', type=str, default='DATABASE_FILENAME', help='Filename of the preprocessed data (input)')
+    parser.add_argument('--model_filename', type=str, default='MODEL_FILENAME', help='Pickle filename for trained classifier model (output)')
+    parser.add_argument('--grid_search_cv', action='store_true', default=False, help='Run grid search CV for the parameters')
+    args = parser.parse_args()
+
+    return (args.database_filename, args.model_filename, args.grid_search_cv)
+
+
 def tokenize(text):
-    # replace all non-alphabets and non-numbers with blank space
+    '''
+    Tokenize and clean thet input text ready for modeling. 
+    First, replaces non-alphabetic and non-numerical characters with a blank space. Put all in lowercase. 
+    Then with split word tokens, go lemmatize with NLTK WordNetLemmatizer(), specify part-of-speech = verb.
+    Finally, the word tokens will be stemmed with NLTK PorterStemmer().
+    '''
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
 
-    # Tokenize words
+    #Tokenize words
     tokens = word_tokenize(text)
 
-    # instantiate lemmatizer
+    #Instantiate lemmatizer
     lemmatizer = WordNetLemmatizer()
 
-    # instantiate stemmer
+    #Instantiate stemmer
     stemmer = PorterStemmer()
 
     clean_tokens = []
@@ -65,39 +84,51 @@ def tokenize(text):
         # strip whitespace and append clean token to array
         clean_tokens.append(clean_tok.strip())
 
-    #url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    #detected_urls = re.findall(url_regex, text)
-    #for url in detected_urls:
-    #    text = text.replace(url, 'urlplaceholder')
-
-    #tokens = [word for word in RegexpTokenizer(r'\b[a-zA-Z][a-zA-Z0-9]{2,14}\b').tokenize(text)]
-    #tokens = [w for w in tokens if w not in stopwords.words("english")]
-    
-    #lemmatizer = WordNetLemmatizer()
-    #cleaned_tokens = []
-    #for tok in tokens:
-    #    clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-    #    cleaned_tokens.append(clean_tok)
-
     return clean_tokens    
 
-def build_model(grid_search_cv = False):
-    pipeline = Pipeline([('vect', CountVectorizer(tokenizer=tokenize)),
-        ('tfidf', TfidfTransformer()), 
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))
-    ])
 
-    #pipeline.get_params()
-    if grid_search_cv:
-        print('Running GridSearchCV...')
-        parameters = {
-            #'vect__ngram_range': ((1, 2), (1, 3)), #((1, 1), (1, 2)),
-            #'vect__max_df': (0.4, 0.5, 0.6), #(0.5, 0.75, 1.0),
-            'clf__estimator__n_estimators': [50, 100, 200],
-            #'clf__estimator__min_samples_split': [2, 3, 4],
-        }
+def build_model(model_type=1, grid_search_cv = False):
+    '''
+    Build the pipelines that 
+    '''
+    # Model 1: NLTK with Adam gradient optimizer
+    if model_type == 1:
+        pipeline = Pipeline([
+            ('vect', CountVectorizer(tokenizer=tokenize)),
+            ('tfidf', TfidfTransformer()), 
+            ('clf', MultiOutputClassifier(AdaBoostClassifier(n_estimator=100, random_state=100)))
+        ])
 
-        pipeline = GridSearchCV(pipeline, param_grid=parameters)
+        #pipeline.get_params()
+        if grid_search_cv:
+            print('Running GridSearchCV...')
+            parameters = {
+                'vect__ngram_range': ((1, 2), (1, 3)),
+                'vect__max_df': (0.4, 0.5, 0.6),
+                'tfidf__max_df':(0.9, 1.0),
+                'tfidf__min_df':(0.01, 0.1), 
+                'clf__stop_words': (None, 'english'),
+                'clf__estimator__learning_rate': [0.1, 1.0],
+            }
+            pipeline = GridSearchCV(pipeline, param_grid=parameters)
+
+    # Model 2: pre-trained GloVe word vector
+    '''
+    elif model_type == 2:
+        pipeline = Pipeline([
+
+            ])
+
+        if grid_search_cv:
+            print('Running GridSearchCV...')
+            parameters = {
+                    'clf__hidden_layer_sizes':((32,), (64,))
+                    'clf__learning_rate_int':(0.001, 0.02)
+            }
+            pipeline = GridSearchCV(pipeline, param_grid=parameters)
+    '''
+    else: 
+        print("Please indicate the model type 1 or 2")
 
     return pipeline
 
@@ -114,20 +145,20 @@ def evaluate_model(model, X_test, y_test, category_names):
  
 
 def save_model(model, model_filename):
+    '''
+    After the ML model is trainned and evaluated, save it to the given file name. 
+    '''
     dump(model, model_filename)
 
 
-def parse_input_argument():
-    parser = argparse.ArgumentParser(description = 'Disaster Responser Train Classifier')
-    parser.add_argument('--database_filename', type=str, default='DATABASE_FILENAME', help='Filename of the preprocessed data (input)')
-    parser.add_argument('--model_filename', type=str, default='MODEL_FILENAME', help='Pickle filename for trained classifier model (output)')
-    parser.add_argument('--grid_search_cv', action='store_true', default=False, help='Run grid search CV for the parameters')
-    args = parser.parse_args()
-
-    return (args.database_filename, args.model_filename, args.grid_search_cv)
-
-    
 def runTraining(database_filename, model_filename, grid_search_cv=False):
+    '''
+    The main function.
+    Provided with
+    - database_filename: the input given data file name.
+    - model_filename: the output saving model name.
+    - grid_search_cv: parameters scan closed by default. Only open it when if it is needed. 
+    '''
     print('Loading data...\n    DATABASE: {}'.format(database_filename))
     X, y, category_names = load_data(database_filename)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
