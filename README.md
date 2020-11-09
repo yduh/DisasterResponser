@@ -7,7 +7,7 @@ This dataset contains 26,249 messages drawn from events including an earthquake 
 
 The data has been encoded with 36 different categories related to disaster response and has been stripped of messages with sensitive information in their entirety.
 
-### File Description:
+## File Description:
 Here's the file structure of the project:
 <pre>
 - data
@@ -30,7 +30,7 @@ Here's the file structure of the project:
 </pre>
 
 
-### Instructions:
+## Instructions:
 1. Run the following commands in the project's root directory to set up your database and model.
 
     - To run ETL pipeline that cleans data and stores in database:
@@ -39,18 +39,20 @@ Here's the file structure of the project:
     
     - To run ML pipeline that trains classifier and saves:
     
-        `python3 train_classifier.py --database_filename ../data/preprocessed.db.sqlite3 --model_filename clf.pkl --grid_search_cv`
+        `python3 train_classifier.py --database_filename ../data/preprocessed.db.sqlite3 --model_filename clf.pkl`
+        
+        By default the [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html) for the best parameters scan is disable because of its intensive computation. To perform it run with the option `--grid_search_cv`
 
 2. Run the following command in the app's directory to run your web app.
     `python3 run.py`
 
 3. Go to http://0.0.0.0:3001/
 
-### Results:
+## Results:
 Finally, the results will be shown on a web app where you can input a message and get classification results.
 
 Screenshot of the web App:
-![Screenshot of Web App](WebApp.png)
+![WebApp](images/WebApp.png)
 
-An example message input and the output categorizations:
-![example1](example1.png)
+An example. An input message is classified into categories:
+![example1](images/example1.png)
